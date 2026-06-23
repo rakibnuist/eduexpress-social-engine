@@ -1,0 +1,28 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy via SSH
+        env:
+          VPS_HOST: 147.93.107.210
+          VPS_USER: root
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          ssh "$VPS_USER@$VPS_HOST" "cd /opt/data/eduexpress-dashboard && git fetch origin main && git reset --hard origin/main && npm ci --production=false && npx next build && pkill -f 'next start' || true && nohup npx next start -p 3000 > /tmp/nextjs.log 2>&1 &"
+          echo "Deployment complete"
